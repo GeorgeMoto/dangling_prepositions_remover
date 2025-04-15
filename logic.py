@@ -22,15 +22,24 @@ PREPOSITIONS = [
     # Английские предлоги были удалены, чтобы сосредоточиться на русских
 ]
 
+# Список русских месяцев
+MONTHS = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+    'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+    'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'
+]
 
-def fix_hanging_prepositions(input_file, output_file, prepositions):
+
+def fix_hanging_prepositions_and_dates(input_file, output_file, prepositions, months):
     """
-    Заменяет обычные пробелы после предлогов на неразрывные в DOCX документе.
+    Заменяет обычные пробелы после предлогов и в датах на неразрывные в DOCX документе.
 
     Args:
         input_file (str): Путь к исходному DOCX файлу
         output_file (str): Путь для сохранения обработанного файла
         prepositions (list): Список предлогов для обработки
+        months (list): Список месяцев для обработки дат
 
     Returns:
         bool: True если обработка успешна, иначе False
@@ -48,6 +57,7 @@ def fix_hanging_prepositions(input_file, output_file, prepositions):
     print(f"Обработка файла: {input_file}")
     print(f"Будет сохранено как: {output_file}")
     print(f"Используемые предлоги: {', '.join(prepositions)}")
+    print(f"Обработка дат с месяцами: {', '.join(months)}")
 
     # Создаем временную директорию
     temp_dir = tempfile.mkdtemp()
@@ -71,18 +81,23 @@ def fix_hanging_prepositions(input_file, output_file, prepositions):
         with open(document_xml_path, 'r', encoding='utf-8') as file:
             content = file.read()
 
-        # Создаем регулярное выражение для поиска предлогов со следующим пробелом
-        # Используем \b для границы слова, чтобы находить только предлоги, а не части слов
-        pattern = r'\b(' + '|'.join(map(re.escape, prepositions)) + r')\s'
-
-
-        # Заменяем пробелы после предлогов на неразрывные (Unicode символ NO-BREAK SPACE)
-        # Используем прямую вставку символа, а не его экранирование через \u00A0
+        # Неразрывный пробел
         non_breaking_space = chr(160)  # Символ NO-BREAK SPACE (Unicode 00A0)
 
-        content, count_replaced = re.subn(pattern, r'\1' + non_breaking_space, content)
+        # 1. Заменяем пробелы после предлогов на неразрывные
+        pattern_prepositions = r'\b(' + '|'.join(map(re.escape, prepositions)) + r')\s'
+        content, count_prepositions = re.subn(pattern_prepositions, r'\1' + non_breaking_space, content)
+        print(f"Заменено {count_prepositions} обычных пробелов после предлогов на неразрывные")
 
-        print(f"Заменено {count_replaced} обычных пробелов на неразрывные")
+        # 2. Заменяем пробелы в датах формата "26 января 1994" на неразрывные
+        # Создаем регулярное выражение для дат: число + пробел + месяц + пробел + год
+        pattern_dates = r'(\b\d{1,2})\s(' + '|'.join(map(re.escape, months)) + r')\s(\d{4})\b'
+
+        # В замене сохраняем число, месяц и год, но меняем обычные пробелы на неразрывные
+        content, count_dates = re.subn(pattern_dates,
+                                       r'\1' + non_breaking_space + r'\2' + non_breaking_space + r'\3',
+                                       content)
+        print(f"Заменено {count_dates} обычных пробелов в датах на неразрывные")
 
         # Записываем обратно измененный document.xml
         with open(document_xml_path, 'w', encoding='utf-8') as file:
@@ -98,6 +113,7 @@ def fix_hanging_prepositions(input_file, output_file, prepositions):
                     outzip.write(file_path, arcname)
 
         print(f"Документ успешно обработан и сохранен как {output_file}")
+        print(f"Всего заменено пробелов: {count_prepositions + count_dates * 2}")
         return True
 
     except Exception as e:
@@ -117,7 +133,7 @@ def main():
     """
     Основная функция для запуска обработки документа
     """
-    success = fix_hanging_prepositions(INPUT_FILE, OUTPUT_FILE, PREPOSITIONS)
+    success = fix_hanging_prepositions_and_dates(INPUT_FILE, OUTPUT_FILE, PREPOSITIONS, MONTHS)
 
     if success:
         print("Обработка завершена успешно!")
