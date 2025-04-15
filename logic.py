@@ -75,17 +75,12 @@ def fix_hanging_prepositions(input_file, output_file, prepositions):
         # Используем \b для границы слова, чтобы находить только предлоги, а не части слов
         pattern = r'\b(' + '|'.join(map(re.escape, prepositions)) + r')\s'
 
-        # Подсчитываем количество замен для отчета
-        count_before = len(re.findall(pattern, content))
 
         # Заменяем пробелы после предлогов на неразрывные (Unicode символ NO-BREAK SPACE)
         # Используем прямую вставку символа, а не его экранирование через \u00A0
         non_breaking_space = chr(160)  # Символ NO-BREAK SPACE (Unicode 00A0)
-        content = re.sub(pattern, r'\1' + non_breaking_space, content)
 
-        # Подсчитываем оставшиеся совпадения для проверки
-        remaining = len(re.findall(pattern, content))
-        count_replaced = count_before - remaining
+        content, count_replaced = re.subn(pattern, r'\1' + non_breaking_space, content)
 
         print(f"Заменено {count_replaced} обычных пробелов на неразрывные")
 
