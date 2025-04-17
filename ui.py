@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Модуль пользовательского интерфейса для программы обработки висячих предлогов в DOCX документах.
+Содержит классы и функции для взаимодействия с пользователем.
+"""
+
 import os
 import threading
 import zipfile
@@ -20,9 +28,11 @@ def load_prepositions():
     try:
         if os.path.exists(PREPOSITIONS_FILE):
             with open(PREPOSITIONS_FILE, 'r', encoding='utf-8') as f:
+                logging.info(f"Загружен список предлогов из файла {PREPOSITIONS_FILE}")
                 return set(json.load(f))
         else:
             # Значения по умолчанию, если файл не существует
+            logging.warning(f"Файл {PREPOSITIONS_FILE} не найден, используются значения по умолчанию")
             default_prepositions = {
                 'в', 'во', 'на', 'к', 'ко', 'с', 'со', 'из', 'от', 'у',
                 'о', 'об', 'про', 'за', 'над', 'под', 'при', 'без',
@@ -42,6 +52,7 @@ def save_prepositions(prepositions_set):
     try:
         with open(PREPOSITIONS_FILE, 'w', encoding='utf-8') as f:
             json.dump(list(prepositions_set), f, ensure_ascii=False, indent=4)
+        logging.info(f"Список предлогов успешно сохранен в файл {PREPOSITIONS_FILE}")
         return True
     except Exception as e:
         logging.error(f"Ошибка при сохранении предлогов: {e}", exc_info=True)
@@ -50,10 +61,13 @@ def save_prepositions(prepositions_set):
 
 class Application:
     def __init__(self, root):
+        """Инициализация приложения."""
         self.root = root
         self.root.title("Обработка висячих предлогов и дат")
-        self.root.geometry("600x650")  # Увеличил размер окна
+        self.root.geometry("600x650")
         self.root.resizable(True, True)
+
+        logging.info("Инициализация приложения")
 
         # Переменные для отслеживания прогресса
         self.progress_var = ttk.DoubleVar()
@@ -64,9 +78,11 @@ class Application:
         # Загружаем список предлогов из JSON
         self.prepositions = load_prepositions()
         self.months = list(MONTHS)
+        logging.info(f"Загружено предлогов: {len(self.prepositions)}, месяцев: {len(self.months)}")
 
         # Создаем интерфейс
         self.create_ui()
+        logging.info("Пользовательский интерфейс создан")
 
     def create_ui(self):
         """Создает элементы пользовательского интерфейса."""
@@ -266,6 +282,7 @@ class Application:
         self.prepositions_listbox.insert("", END, values=(word,))
         self.prepositions.add(word)
         self.new_preposition_var.set("")  # Очищаем поле ввода
+        logging.info(f"Добавлен новый предлог: '{word}'")
 
     def delete_preposition(self):
         """Удаляет выбранный предлог из списка."""
@@ -277,6 +294,7 @@ class Application:
         word = self.prepositions_listbox.item(selected[0])["values"][0]
         self.prepositions_listbox.delete(selected[0])
         self.prepositions.remove(word)
+        logging.info(f"Удален предлог: '{word}'")
 
     def save_prepositions(self):
         """Сохраняет изменения в списке предлогов в JSON файл."""
@@ -290,6 +308,7 @@ class Application:
         try:
             file_path = filedialog.askopenfilename(filetypes=[("Word Documents", "*.docx")])
             if file_path:
+                logging.info(f"Выбран файл: {file_path}")
                 self.process_files([file_path])
         except Exception as e:
             logging.error(f"Ошибка при выборе файла: {e}", exc_info=True)
@@ -312,6 +331,7 @@ class Application:
                 if not docx_files:
                     messagebox.showwarning("Предупреждение", "В папке нет .docx файлов")
                     self.process_info.config(text=f"Файлы .docx не найдены")
+                    logging.warning(f"В папке {folder_path} не найдено .docx файлов")
                     return
 
                 # Показываем количество найденных файлов
@@ -333,7 +353,7 @@ class Application:
                       if os.path.isfile(os.path.join(folder_path, f)) and f.endswith(".docx")]
 
         # Логируем общее количество найденных файлов
-        logging.info(f"Всего найдено файлов: {len(docx_files)}")
+        logging.info(f"Всего найдено файлов в папке {folder_path}: {len(docx_files)}")
 
         return docx_files
 
@@ -466,16 +486,19 @@ class Application:
                 # Обновляем информацию о процессе
                 self.process_info.config(
                     text=f"Обработка завершена: {successful_files} успешно, {len(errors)} с ошибками")
+                logging.warning(f"Обработка завершена с ошибками: {successful_files} успешно, {len(errors)} с ошибками")
             else:
                 # Если все файлы с ошибками
                 messagebox.showerror("Ошибка", f"Не удалось обработать файлы. Ошибок: {len(errors)}")
                 # Обновляем информацию о процессе
                 self.process_info.config(text=f"Обработка завершена с ошибками: {len(errors)} файлов")
+                logging.error(f"Не удалось обработать файлы. Ошибок: {len(errors)}")
         else:
             # Если всё успешно
             messagebox.showinfo("✅ Готово!", f"Успешно обработано файлов: {successful_files}")
             # Обновляем информацию о процессе
             self.process_info.config(text=f"Обработка успешно завершена: {successful_files} файлов")
+            logging.info(f"Обработка успешно завершена: {successful_files} файлов")
 
         # Сбрасываем статус и прогресс
         self.status_var.set("Готов к работе")
@@ -496,6 +519,7 @@ class Application:
         # Обновляем статус и информацию о процессе
         self.status_var.set(f"Подготовка к обработке {len(files)} файлов...")
         self.process_info.config(text=f"Подготовка к обработке {len(files)} файлов...")
+        logging.info(f"Подготовка к обработке {len(files)} файлов")
 
         # Запускаем обработку в отдельном потоке
         worker_thread = threading.Thread(
@@ -504,24 +528,3 @@ class Application:
             daemon=True
         )
         worker_thread.start()
-
-
-def run_ui():
-    """Запускает пользовательский интерфейс."""
-    # Настраиваем логирование
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler("app.log"),
-            logging.StreamHandler()
-        ]
-    )
-
-    root = ttk.Window(themename="superhero")  # Темная тема
-    app = Application(root)
-    root.mainloop()
-
-
-if __name__ == "__main__":
-    run_ui()
